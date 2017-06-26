@@ -1,11 +1,12 @@
 package pdf2html
 
 import (
+	"fmt"
 	"github.com/jiusanzhou/pdf2html/pkg/util"
 	"os"
 	"path"
-	"time"
 	"path/filepath"
+	"time"
 )
 
 // material of factory input
@@ -99,7 +100,12 @@ func NewFactory(c *Config) (f *Factory, err error) {
 	f = &Factory{
 		config: c,
 		cmdTpl: util.ExecTpl(execTpl, map[string]string{"exe": exec, "data": exDataDir}),
+
+		in:  make(chan *Material),
+		out: make(chan *Product),
 	}
+
+	go f.Start()
 
 	return
 }
@@ -140,7 +146,19 @@ func (f *Factory) Convert(m *Material) (p *Product, err error) {
 
 	// var outFileName string
 
-	cmd := util.ExecTpl(f.cmdTpl, map[string]string{"input": m.FilePath, "output": m.OutputFilePath})
+	var output string
+
+	if filepath.IsAbs(m.OutputFilePath) {
+		//  is abs path
+		base := filepath.Dir(m.OutputFilePath)
+		_, name := filepath.Split(m.OutputFilePath)
+		output = "--dest-dir=" + base + " " + name
+
+	}else{
+		output = m.OutputFilePath
+	}
+
+	cmd := util.ExecTpl(f.cmdTpl, map[string]string{"input": m.FilePath, "output": output})
 
 	p = &Product{
 		Material: m,
@@ -153,12 +171,14 @@ func (f *Factory) Convert(m *Material) (p *Product, err error) {
 	p.Coast = coast
 
 	if err != nil {
+		fmt.Println("转换PDF有错误,", err.Error())
 		p.Status = 1
 		return
 	}
 
 	fi, err := os.Stat(m.OutputFilePath)
 	if err != nil {
+		fmt.Println("PDF->HTML输出的文件,", err.Error())
 		p.Status = 1
 		return
 	}
@@ -213,4 +233,15 @@ func (f *Factory) Start() {
 		// put product
 		f.out <- p
 	}
+}
+
+func (f *Factory) Close() {
+	// TODO: wait finished all
+
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
+	close(f.in)
+	close(f.out)
 }

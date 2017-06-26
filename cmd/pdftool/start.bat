@@ -1,0 +1,1 @@
+pdftool -pdf2html-exec=.data\pdf2htmlEX\pdf2htmlEX  -pdf2html-tpl="{{exe}} --data-dir={{data}} {{input}} {{output}}" -wkhtmltopdf-exec=.data\wkhtmltopdf\bin\wkhtmltopdf 2simple test_data\13±±¾©¿ÆÈñ.PDF

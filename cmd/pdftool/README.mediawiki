@@ -1,0 +1,94 @@
+<h1 id="pdf-工具">PDF 工具</h1>
+<p>PDF工具支持4中功能： 1. HTML转换至PDF 2. PDF转换至HTML 3. 繁体转换至简体 4. 简体转换至繁体</p>
+<h2 id="部署依赖">部署依赖</h2>
+<ol style="list-style-type: decimal">
+<li>pdf2htmlEX 工具，这个工具在压缩包中自带，依赖库也带上了， 但是不一定会在所有机器上运行成功，因为动态库版本的问题，如果有问题， 可以在本机编译。</li>
+<li>版本在59以上Chrome 浏览器，主要用于使用headless模式进行HTML转换至PDF 也可以使用xfvb配合低版本的Chrome。</li>
+</ol>
+<h2 id="使用说明">使用说明</h2>
+<p>目前server模式还未支持，请使用命令模式</p>
+<p>命令总览：</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">  <span class="ex">-auth</span> string
+        <span class="ex">server</span>模式下，转换服务的认证用户名和密码
+  <span class="ex">-chrome</span> string
+        <span class="ex">Google</span>浏览器的路径 (default <span class="st">&quot;/usr/bin/chromium-browser&quot;</span>)
+  <span class="ex">-data-dir</span> string
+        数据路径，一般情况下里面会包含<span class="ex">chrome</span>和pdf2htmlEx (default <span class="st">&quot;.data&quot;</span>)
+  <span class="ex">-http</span> string
+        <span class="ex">server</span>模式下，转换服务的HTTP监听地址 (default <span class="st">&quot;:8080&quot;</span>)
+  <span class="ex">-output</span> string
+        繁<span class="op">&lt;</span><span class="ex">-</span><span class="op">&gt;</span>简转换模式下，输出的文件名
+  <span class="ex">-output-dir</span> string
+        转换文件的输出目录
+  <span class="ex">-pdf2html-exec</span> string
+        <span class="ex">pdf2htmlEx</span>工具的路径 (default <span class="st">&quot;pdf2htmlEx&quot;</span>)
+  <span class="ex">-pdf2html-tpl</span> string
+        <span class="ex">pdf2htmlEx</span>工具的执行模板 (default <span class="st">&quot;{{exe}} --data-dir={{data}} {{input}} {{output}}&quot;</span>)
+  <span class="ex">-scale</span> float
+        <span class="ex">HTML</span> -<span class="op">&gt;</span> PDF 的缩放 (default 1)
+  <span class="ex">-suffix</span> string
+        转换文件的后缀，只针对于繁<span class="op">&lt;</span><span class="ex">-</span><span class="op">&gt;</span>简
+  <span class="ex">-tmp-dir</span> string
+        临时文件路径
+  <span class="ex">-wkhtmltopdf-exec</span> string
+        <span class="ex">wkhtmltopdf</span>工具的路径
+  <span class="ex">-wkhtmltopdf-tpl</span> string
+        <span class="ex">wkhtmltopdf</span>工具的执行模板 (default <span class="st">&quot;{{exec}} --no-stop-slow-scripts -g --print-media-type --load-error-handling ignore {{input}} {{output}}&quot;</span>)
+
+高级使用说明: <span class="ex">pdftool</span> <span class="op">&lt;</span>command<span class="op">&gt;</span> [OPTIONS]
+    <span class="ex">pdftool</span> server              启动HTTP转换服务，通过HTTP接口接收转换请求
+    <span class="ex">pdftool</span> 2pdf                转换文件为PDF文档
+    <span class="ex">pdftool</span> 2html               转换文件为HTML文档
+    <span class="ex">pdftool</span> 2simple             转换文档为简体中文
+    <span class="ex">pdftool</span> 2tradition          转换文档为繁体中文
+    <span class="ex">pdftool</span> help                打印帮助文档
+    <span class="ex">pdftool</span> version             查看版本信息
+
+示例：
+    <span class="ex">pdftool</span> server -http=:8080 -auth=username:password
+    <span class="ex">pdftool</span> 2pdf test.html test.pdf
+    <span class="ex">pdftool</span> 2pdf test-1.html test-2.html
+    <span class="ex">pdftool</span> 2pdf -chrome=./chrome/chrome test.html test.pdf
+    <span class="ex">pdftool</span> 2pdf -output-dir=output_test test.html
+    <span class="ex">pdftool</span> 2html test.pdf test.html
+    <span class="ex">pdftool</span> 2html -pdf2htmlEx=data/pdf2htmlEx/pdf2htmlEx test.pdf test.html
+    <span class="ex">pdftool</span> 2html test-1.pdf test-2.pdf
+    <span class="ex">pdftool</span> 2html -output-dir=output_test test.pdf
+    <span class="ex">pdftool</span> 2simple -suffix=_simple zh_tradition.txt zh_tradition.html
+    <span class="ex">pdftool</span> 2tradition -output=zh_tradition_simple.txt zh_tradition.txt
+    <span class="ex">pdftool</span> version</code></pre></div>
+<p>目录结构说明：</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="ex">.</span>
+├── <span class="ex">data</span>
+│   ├── <span class="ex">pdf2htmlEX</span>
+│   │   ├── <span class="ex">data</span>
+│   │   │   ├── <span class="ex">base.css</span>
+│   │   │   ├── <span class="ex">base.min.css</span>
+│   │   │   ├── <span class="ex">compatibility.js</span>
+│   │   │   ├── <span class="ex">compatibility.min.js</span>
+│   │   │   ├── <span class="ex">fancy.css</span>
+│   │   │   ├── <span class="ex">fancy.min.css</span>
+│   │   │   ├── <span class="ex">LICENSE</span>
+│   │   │   ├── <span class="ex">manifest</span>
+│   │   │   ├── <span class="ex">pdf2htmlEX-64x64.png</span>
+│   │   │   ├── <span class="ex">pdf2htmlEX.js</span>
+│   │   │   └── <span class="ex">pdf2htmlEX.min.js</span>
+│   │   ├── <span class="ex">libs</span>
+│   │   │   ├── <span class="ex">d</span>
+│   │   │   │   ├── <span class="ex">libfontforge.so.2</span>
+│   │   │   │   ├── <span class="ex">libgioftp.so.2</span>
+│   │   │   │   ├── <span class="ex">libgunicode.so.4</span>
+│   │   │   │   ├── <span class="ex">libgutils.so.2</span>
+│   │   │   │   └── <span class="ex">libuninameslist.so.1</span>
+│   │   │   ├── <span class="ex">libspiro.so.0</span>
+│   │   │   ├── <span class="ex">......</span>
+│   │   └── <span class="ex">pdf2htmlEX</span>
+│   ├── <span class="ex">poppler-data</span>
+│   │   ├── <span class="ex">......</span>
+└── <span class="ex">pdftool</span></code></pre></div>
+<p><code>pdftool</code>是转换的工具，<code>data</code>是<code>pdf2htmlEX</code>及其依赖的字体文件<code>poppler-data</code>。</p>
+<p><code>data/pdf2htmlEX/libs/d</code>是<code>pdf2htmlEX</code>依赖的动态库文件路径，与上一层目录中构成是所有的动态依赖库， 如果运行提示缺少动态库的依赖，可手动移动<code>libs</code>中的文件至<code>libs/d</code>中。</p>
+<p>繁体PDF转简体PDF：</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="bu">export</span> <span class="va">LD_LIBRARY_PATH=</span>data/pdf2htmlEX/libs/d
+<span class="ex">./pdftool</span> -pdf2html-exec=data/pdf2htmlEX/pdf2htmlEX -chrome=[chrome所在路径] 2simple test_data/02中工国际.PDF</code></pre></div>
+<p>最终等待一定时间：有<code>test_data/02中工国际_simple.PDF</code>文件生成。</p>

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/jiusanzhou/pdf2html/pkg/zhconv"
+	"github.com/jiusanzhou/eagle/util"
 )
 
 func main() {
@@ -23,9 +24,9 @@ func main() {
 	if *s {
 		for _, s := range flag.Args() {
 			if *toS {
-				fmt.Println(f.ToSimple(s))
+				fmt.Println(util.B2s(f.ToSimple(s)))
 			} else {
-				fmt.Println(f.ToTraditional(s))
+				fmt.Println(util.B2s(f.ToTraditional(s)))
 			}
 		}
 	} else {

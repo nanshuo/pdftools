@@ -11,14 +11,14 @@ import (
 var chineseRegex *regexp.Regexp = regexp.MustCompile("[\u4e00-\u9fa5]")
 
 type Factory struct {
-	s2t map[string]string
-	t2s map[string]string
+	s2t map[int32][]byte
+	t2s map[int32][]byte
 }
 
 func NewFactory() *Factory {
 	f := &Factory{
-		s2t: make(map[string]string),
-		t2s: make(map[string]string),
+		s2t: make(map[int32][]byte),
+		t2s: make(map[int32][]byte),
 	}
 
 	f.load(zh_db)
@@ -34,8 +34,8 @@ func (f *Factory) LoadResource(filename string, remove bool) error {
 	}
 
 	if remove {
-		f.s2t = make(map[string]string)
-		f.t2s = make(map[string]string)
+		f.s2t = make(map[int32][]byte)
+		f.t2s = make(map[int32][]byte)
 	}
 
 	return f.load(util.B2s(bs))
@@ -56,25 +56,23 @@ func (f *Factory) load(str string) error {
 		if !IsChinese(couple[0]) || !IsChinese(couple[1]) {
 			continue
 		}
-		f.t2s[couple[0]] = couple[1]
-		f.s2t[couple[1]] = couple[0]
+		f.t2s[int32([]rune(couple[0])[0])] = util.S2b(couple[1])
+		f.s2t[int32([]rune(couple[1])[0])] = util.S2b(couple[0])
 	}
 
 	return nil
 }
 
-// TODO: use int64 -> string
-
-func (f *Factory) ToSimple(str string) (res string) {
+func (f *Factory) ToSimple(str string) (res []byte) {
 	for _, s := range str {
-		res += f.getSimple(string(s))
+		res = append(res, f.getSimple(s)...)
 	}
 	return
 }
 
-func (f *Factory) ToTraditional(str string) (res string) {
+func (f *Factory) ToTraditional(str string) (res []byte) {
 	for _, s := range str {
-		res += f.getTraditional(string(s))
+		res = append(res, f.getTraditional(s)...)
 	}
 	return
 }
@@ -87,7 +85,7 @@ func (f *Factory) FileToSimple(source, dist string) (err error) {
 	}
 
 	res := f.ToSimple(util.B2s(str))
-	err = ioutil.WriteFile(dist, util.S2b(res), 0666)
+	err = ioutil.WriteFile(dist, res, 0666)
 
 	return
 }
@@ -100,37 +98,45 @@ func (f *Factory) FileToTraditional(source, dist string) (err error) {
 	}
 
 	res := f.ToTraditional(util.B2s(str))
-	err = ioutil.WriteFile(dist, util.S2b(res), 0666)
+	err = ioutil.WriteFile(dist,res, 0666)
 
 	return
 }
 
-func (f *Factory) getTraditional(str string) string {
-	if !IsChinese(str) {
-		return str
+func (f *Factory) getTraditional(str int32) []byte {
+	if !IsChineseInt(str) {
+		return util.S2b(string(str))
 	}
 
 	v := f.s2t[str]
-	if v != "" {
+	if v != nil {
 		return v
 	} else {
-		return str
+		return util.S2b(string(str))
 	}
 }
 
-func (f *Factory) getSimple(str string) string {
-	if !IsChinese(str) {
-		return str
+func (f *Factory) getSimple(str int32) []byte {
+	if !IsChineseInt(str) {
+		return util.S2b(string(str))
 	}
 
 	v := f.t2s[str]
-	if v != "" {
+	if v != nil {
 		return v
 	} else {
-		return str
+		return util.S2b(string(str))
 	}
 }
 
 func IsChinese(char string) bool {
 	return chineseRegex.MatchString(char)
+}
+
+func IsChineseInt(str int32) bool {
+	if 19968<=str && str<=40869{
+		return true
+	}else{
+		return false
+	}
 }
