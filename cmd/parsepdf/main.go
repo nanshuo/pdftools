@@ -6,8 +6,97 @@ import (
 	"log"
 	"os"
 
-	unipdf "github.com/unidoc/unidoc/pdf"
+	unipdf "github.com/jiusanzhou/unidoc/pdf"
+	// "github.com/jung-kurt/gofpdf"
+	"bytes"
+	"github.com/jiusanzhou/unidoc/common"
+	"regexp"
 )
+
+func pFont(page *unipdf.PdfPage) {
+
+	source := page.Resources
+	if fonts, ok := source.Font.(*unipdf.PdfObjectDictionary); ok {
+		for fontName, fontItem := range *fonts {
+			if fontItemObj, ok := fontItem.(*unipdf.PdfIndirectObject); ok {
+				fmt.Println(fontName, fontItemObj)
+				if fontItemDict, ok := fontItemObj.PdfObject.(*unipdf.PdfObjectDictionary); ok {
+					for k, v := range *fontItemDict {
+						if k.String() == "ToUnicode" {
+							if oldStream := v.(*unipdf.PdfObjectStream); ok {
+								bs, err := unipdf.DecodeStream(oldStream)
+								fmt.Println("========", fontName, "=======")
+								fmt.Println(string(bs))
+								if err == nil {
+									ds := reUnicode.ReplaceAllFunc(bs, func(s []byte) []byte {
+										return []byte(" <4E8B>\n")
+									})
+									stream, _ := unipdf.EncodeStream(ds, "FlateDecode")
+									fontItemDict.Set(k, stream)
+								}
+							}
+						} else if k.String() == "FontDescriptor" {
+							//if fontDesc, ok := v.(*unipdf.PdfIndirectObject); ok {
+							//	if fontDescDict, ok := fontDesc.PdfObject.(*unipdf.PdfObjectDictionary); ok {
+							//		fmt.Println(fontDescDict)
+							//		if fontFile2, ok := (*fontDescDict)["FontFile2"]; ok {
+							//			fmt.Println("=====Font File 2 ====")
+							//			if oldStream := fontFile2.(*unipdf.PdfObjectStream); ok {
+							//				bs, err := unipdf.DecodeStream(oldStream)
+							//				if err == nil {
+							//					fmt.Println(string(bs))
+							//				}else{
+							//					fmt.Println(err.Error())
+							//				}
+							//				// oldStream.Stream = []byte{}
+							//			}else{
+							//				fmt.Println("Not ok")
+							//			}
+							//		}
+							//	}
+							//}
+						} else {
+							fmt.Println(k, v)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func pStream(stream *unipdf.PdfObjectStream) {
+	bs, err := unipdf.DecodeStream(stream)
+	if err == nil {
+		fmt.Println(string(bs))
+		// 02d6 05D40099
+		// 05D40099
+		// 02950A3703C10D360ABA05030DAB0FA003DE082202AE0321
+		ds := bytes.Replace(bs, []byte("02950C820C1C0453"), []byte("02950A3703C10D360ABA05030DAB0FA003DE082202AE0321"), -1)
+		en, err := unipdf.EncodeStream(ds, "FlateDecode")
+		if err == nil {
+			stream.Stream = en.Stream
+		}
+	} else {
+		fmt.Println(err.Error())
+	}
+}
+
+func pContent(page *unipdf.PdfPage) {
+	fmt.Println("===Page===", page.Contents)
+	switch v := page.Contents.(type) {
+	case *unipdf.PdfObjectStream:
+		pStream(v)
+	case *unipdf.PdfObjectArray:
+		for _, vv := range *v {
+			if vvv, ok := vv.(*unipdf.PdfObjectStream); ok {
+				pStream(vvv)
+			}
+		}
+	}
+}
+
+var reUnicode *regexp.Regexp = regexp.MustCompile(" <[0-9A-F]{4}>\n")
 
 func main() {
 	flag.Parse()
@@ -15,7 +104,9 @@ func main() {
 	if len(args) < 1 {
 		fmt.Println("At least one PDF file.")
 		// os.Exit(1)
-		args = append(args, "D:/Zoe/Projects/GO/src/github.com/jiusanzhou/pdf2html/cmd/pdf2html/test_data/01双鹭药业.pdf")
+		// args = append(args, "D:/Zoe/Projects/GO/src/github.com/jiusanzhou/pdf2html/cmd/parsepdf/_.pdf")
+		args = append(args, "D:/Zoe/Projects/GO/src/github.com/jiusanzhou/pdf2html/cmd/parsepdf/1.pdf")
+		args = append(args, "D:/Zoe/Projects/GO/src/github.com/jiusanzhou/pdf2html/cmd/pdftool/test_data/13北京科锐.PDF")
 	}
 
 	f, err := os.Open(args[0])
@@ -28,12 +119,22 @@ func main() {
 	pdfReader, _ := unipdf.NewPdfReader(f)
 	pdfWriter := unipdf.NewPdfWriter()
 
-	for _, p := range pdfReader.PageList {
+	common.SetLogger(common.ConsoleLogger{})
+	fmt.Println(reUnicode)
 
-		fmt.Println(p.Contents)
-		pdfWriter.AddPage(p.GetPageAsIndirectObject())
+	i := 0
+	for _, page := range pdfReader.PageList {
+		//pdfWriter.AddPage(page.GetPageAsIndirectObject())
+		//break
+		// pFont(page)
+		pContent(page)
+		pdfWriter.AddPage(page.GetPageAsIndirectObject())
+		i++
+		if i > 2 {
+			break
+		}
 	}
 
-	n, err := os.Create("D:/Zoe/Projects/GO/src/github.com/jiusanzhou/pdf2html/cmd/parsepdf/test.pdf")
+	n, err := os.Create("D:/Zoe/Projects/GO/src/github.com/jiusanzhou/pdf2html/cmd/parsepdf/_1.pdf")
 	pdfWriter.Write(n)
 }
