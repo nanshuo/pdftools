@@ -82,6 +82,8 @@ type Options struct {
 	tmpDir string
 
 	scale float64
+
+	maxPage int
 }
 
 var opts *Options
@@ -110,6 +112,8 @@ func init() {
 		output string
 
 		scale float64
+
+		maxPage int
 	)
 
 	flag.Usage = func() {
@@ -131,6 +135,7 @@ func init() {
 	flag.StringVar(&auth, "auth", "", "server模式下，转换服务的认证用户名和密码")
 	flag.StringVar(&output, "output", "", "繁<->简转换模式下，输出的文件名")
 	flag.Float64Var(&scale, "scale", 1, "HTML -> PDF 的缩放")
+	flag.IntVar(&maxPage, "max-page", 50, "一次转换最多的页数，用此参数可控制并发。不是越小越好啊，越好越占CPU哦")
 
 	switch runtime.GOOS {
 	case "windows":
@@ -151,13 +156,13 @@ func init() {
 	}
 
 	opts = &Options{
-		cmd:           flag.Arg(0),
-		http:          http,
-		auth:          auth,
-		outputDir:     outputDir,
-		dataDir:       dataDir,
-		suffix:        suffix,
-		chrome:        chrome,
+		cmd:       flag.Arg(0),
+		http:      http,
+		auth:      auth,
+		outputDir: outputDir,
+		dataDir:   dataDir,
+		suffix:    suffix,
+		chrome:    chrome,
 
 		wkhtml2pdf:    wkhtml2pdf,
 		wkhtml2pdfTpl: wkhtml2pdfTpl,
@@ -166,7 +171,8 @@ func init() {
 		pdf2htmlEx:    pdf2htmlEx,
 		pdf2htmlExTpl: pdf2htmlExTpl,
 
-		scale: scale,
+		scale:   scale,
+		maxPage: maxPage,
 	}
 
 	if len(flag.Args()) == 0 {
