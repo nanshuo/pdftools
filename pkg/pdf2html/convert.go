@@ -154,7 +154,7 @@ func (f *Factory) Convert(m *Material) (p *Product, err error) {
 		_, name := filepath.Split(m.OutputFilePath)
 		output = "--dest-dir=" + base + " " + name
 
-	}else{
+	} else {
 		output = m.OutputFilePath
 	}
 
@@ -204,10 +204,10 @@ func (f *Factory) Put(m *Material) (err error) {
 	return
 }
 
-func (f *Factory) Get() (*Product, error) {
+func (f *Factory) Get() (p *Product, err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			return
+
 		}
 	}()
 
@@ -226,12 +226,13 @@ func (f *Factory) Start() {
 		// get a material
 
 		// convert
-		p, _ := f.Convert(m)
+		go func(m *Material) {
+			p, _ := f.Convert(m)
+			// put product
+			f.out <- p
+		}(m)
 
 		// log error
-
-		// put product
-		f.out <- p
 	}
 }
 

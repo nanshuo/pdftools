@@ -3,6 +3,7 @@ package wkhtml2pdf
 import (
 	"bytes"
 	"fmt"
+	"github.com/jiusanzhou/pdf2html/pkg/html2pdf"
 	"github.com/jiusanzhou/pdf2html/pkg/util"
 	"io/ioutil"
 	"os"
@@ -40,7 +41,7 @@ type Product struct {
 	Coast time.Duration
 
 	// Material
-	Material *Material
+	Material *html2pdf.Material
 }
 
 // factory for transforming pdf to html
@@ -52,10 +53,10 @@ type Factory struct {
 	cmdTpl string
 
 	// material channel for put
-	in chan *Material
+	in chan *html2pdf.Material
 
 	// product channel for get
-	out chan *Product
+	out chan *html2pdf.Product
 }
 
 var (
@@ -93,8 +94,8 @@ func NewFactory(c *Config) (f *Factory, err error) {
 		config: c,
 		cmdTpl: util.ExecTpl(execTpl, map[string]string{"exec": exec}),
 
-		in:  make(chan *Material),
-		out: make(chan *Product),
+		in:  make(chan *html2pdf.Material),
+		out: make(chan *html2pdf.Product),
 	}
 
 	go f.Start()
@@ -102,7 +103,7 @@ func NewFactory(c *Config) (f *Factory, err error) {
 	return
 }
 
-func (f *Factory) NewMaterial(filePath, outputDir, outputFileName string) (m *Material, err error) {
+func (f *Factory) NewMaterial(filePath, outputDir, outputFileName string) (m *html2pdf.Material, err error) {
 
 	// TODO: check if file path is url
 
@@ -132,7 +133,7 @@ func (f *Factory) NewMaterial(filePath, outputDir, outputFileName string) (m *Ma
 		}
 	}
 
-	m = &Material{
+	m = &html2pdf.Material{
 		FilePath:       filePath,
 		OutputFilePath: outputPath,
 	}
@@ -147,7 +148,7 @@ func fixFontsBug(f string) {
 	}
 }
 
-func (f *Factory) Convert(m *Material) (p *Product, err error) {
+func (f *Factory) Convert(m *html2pdf.Material) (p *html2pdf.Product, err error) {
 
 	cmd := util.ExecTpl(f.cmdTpl, map[string]string{"input": m.FilePath, "output": m.OutputFilePath})
 
@@ -155,7 +156,7 @@ func (f *Factory) Convert(m *Material) (p *Product, err error) {
 
 	fixFontsBug(m.FilePath)
 
-	p = &Product{
+	p = &html2pdf.Product{
 		Material: m,
 	}
 
@@ -184,7 +185,7 @@ func (f *Factory) Convert(m *Material) (p *Product, err error) {
 	return
 }
 
-func (f *Factory) Put(m *Material) (err error) {
+func (f *Factory) Put(m *html2pdf.Material) (err error) {
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -199,7 +200,7 @@ func (f *Factory) Put(m *Material) (err error) {
 	return
 }
 
-func (f *Factory) Get() (*Product, error) {
+func (f *Factory) Get() (*html2pdf.Product, error) {
 	defer func() {
 		if err := recover(); err != nil {
 			return
@@ -219,14 +220,15 @@ func (f *Factory) Start() {
 	for m := range f.in {
 
 		// get a material
+		func() {
+			// convert
+			p, _ := f.Convert(m)
 
-		// convert
-		p, _ := f.Convert(m)
+			// log error
 
-		// log error
-
-		// put product
-		f.out <- p
+			// put product
+			f.out <- p
+		}()
 	}
 }
 

@@ -20,6 +20,11 @@ const (
 	minVersion = 60
 )
 
+type HTML2PDFFactory interface {
+	Put(m *Material) (err error)
+	Get() (*Product, error)
+}
+
 // material of factory input
 type Material struct {
 	// TODO: support http get file
@@ -134,7 +139,7 @@ func NewFactory(c *Config) (f *Factory, err error) {
 	return
 }
 
-func (f *Factory) NewMaterial(filePath, outputDir, outputFileName string, scale float64) (m *Material, err error) {
+func (f *Factory) NewMaterial(filePath, outputDir, outputFileName string, scale float64, landScape bool) (m *Material, err error) {
 
 	// TODO: check if file path is url
 
@@ -165,15 +170,22 @@ func (f *Factory) NewMaterial(filePath, outputDir, outputFileName string, scale 
 	m = &Material{
 		FilePath:       absPath,
 		OutputFilePath: outputPath,
-		Params:         &gcdapi.PagePrintToPDFParams{Scale: scale},
+		Params: &gcdapi.PagePrintToPDFParams{
+			Scale:        scale,
+			Landscape:    landScape,
+			MarginBottom: 0,
+			MarginLeft:   0,
+			MarginRight:  0,
+			MarginTop:    0,
+		},
 	}
 
 	return
 }
 
-func (f *Factory) Convert(m *Material) (p *Product, err error) {
+func (f *Factory) Convert(m *Material) (*Product, error) {
 
-	p = &Product{
+	p := &Product{
 		Material: m,
 	}
 
@@ -183,10 +195,11 @@ func (f *Factory) Convert(m *Material) (p *Product, err error) {
 	tab, err := f.chrome.NewTab()
 	if err != nil {
 		p.Status = 1
-		return
+		fmt.Println(err.Error())
+		return p, err
 	}
 
-	defer f.chrome.CloseTab(tab)
+	// defer f.chrome.CloseTab(tab)
 
 	tab.Page.Enable()
 
@@ -200,7 +213,8 @@ func (f *Factory) Convert(m *Material) (p *Product, err error) {
 	_, err = tab.Page.Navigate(m.FilePath, "", "")
 	if err != nil {
 		p.Status = 1
-		return
+		fmt.Println(err.Error())
+		return p, err
 	}
 
 	if m.Params == nil {
@@ -218,31 +232,61 @@ func (f *Factory) Convert(m *Material) (p *Product, err error) {
 
 	data, err := tab.Page.PrintToPDFWithParams(m.Params)
 	if err != nil {
-		return
+		p.Status = 1
+		fmt.Println(err.Error())
+		return p, err
 	}
 
 	bs, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
 		p.Status = 1
-		return
+		fmt.Println(err.Error())
+		return p, err
 	}
 
 	err = ioutil.WriteFile(m.OutputFilePath, bs, 0666)
 	if err != nil {
 		p.Status = 1
-		return
+		fmt.Println(err.Error())
+		return p, err
 	}
 
 	fi, err := os.Stat(m.OutputFilePath)
 	if err != nil {
 		p.Status = 1
-		return
+		fmt.Println(err.Error())
+		return p, err
 	}
 
 	p.Coast = time.Now().Sub(startTime)
 	p.Status = 0
 	p.Size = fi.Size()
 	p.FilePath = m.OutputFilePath
+
+	return p, nil
+}
+
+func (f *Factory) Get() (*Product, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			return
+		}
+	}()
+
+	return <-f.out, nil
+}
+
+func (f *Factory) Put(m *Material) (err error) {
+
+	defer func() {
+		if err := recover(); err != nil {
+			return
+		}
+	}()
+
+	// log
+
+	f.in <- m
 
 	return
 }
@@ -257,20 +301,21 @@ func (f *Factory) Start() {
 	for m := range f.in {
 
 		// get a material
+		go func(m *Material) {
+			// convert
+			p, _ := f.Convert(m)
 
-		// convert
-		p, _ := f.Convert(m)
+			// log error
 
-		// log error
-
-		// put product
-		f.out <- p
+			// put product
+			f.out <- p
+		}(m)
 	}
 }
 
 func (f *Factory) Close() {
 	// TODO: wait finished all
-	// f.chrome.ExitProcess()
+	f.chrome.ExitProcess()
 
 	defer func() {
 		if err := recover(); err != nil {
