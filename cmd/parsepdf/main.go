@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"github.com/jiusanzhou/unidoc/common"
 	"regexp"
+	"github.com/signintech/gopdf"
 )
 
 func pFont(page *unipdf.PdfPage) {
@@ -23,38 +24,39 @@ func pFont(page *unipdf.PdfPage) {
 				if fontItemDict, ok := fontItemObj.PdfObject.(*unipdf.PdfObjectDictionary); ok {
 					for k, v := range *fontItemDict {
 						if k.String() == "ToUnicode" {
-							if oldStream := v.(*unipdf.PdfObjectStream); ok {
-								bs, err := unipdf.DecodeStream(oldStream)
-								fmt.Println("========", fontName, "=======")
-								fmt.Println(string(bs))
-								if err == nil {
-									ds := reUnicode.ReplaceAllFunc(bs, func(s []byte) []byte {
-										return []byte(" <4E8B>\n")
-									})
-									stream, _ := unipdf.EncodeStream(ds, "FlateDecode")
-									fontItemDict.Set(k, stream)
-								}
-							}
-						} else if k.String() == "FontDescriptor" {
-							//if fontDesc, ok := v.(*unipdf.PdfIndirectObject); ok {
-							//	if fontDescDict, ok := fontDesc.PdfObject.(*unipdf.PdfObjectDictionary); ok {
-							//		fmt.Println(fontDescDict)
-							//		if fontFile2, ok := (*fontDescDict)["FontFile2"]; ok {
-							//			fmt.Println("=====Font File 2 ====")
-							//			if oldStream := fontFile2.(*unipdf.PdfObjectStream); ok {
-							//				bs, err := unipdf.DecodeStream(oldStream)
-							//				if err == nil {
-							//					fmt.Println(string(bs))
-							//				}else{
-							//					fmt.Println(err.Error())
-							//				}
-							//				// oldStream.Stream = []byte{}
-							//			}else{
-							//				fmt.Println("Not ok")
-							//			}
-							//		}
+							//if oldStream := v.(*unipdf.PdfObjectStream); ok {
+							//	bs, err := unipdf.DecodeStream(oldStream)
+							//	fmt.Println("========", fontName, "=======")
+							//	fmt.Println(string(bs))
+							//	if err == nil {
+							//		ds := reUnicode.ReplaceAllFunc(bs, func(s []byte) []byte {
+							//			return []byte(" <4E8B>\n")
+							//		})
+							//		stream, _ := unipdf.EncodeStream(ds, "FlateDecode")
+							//		fontItemDict.Set(k, stream)
 							//	}
 							//}
+						} else if k.String() == "FontDescriptor" {
+							if fontDesc, ok := v.(*unipdf.PdfIndirectObject); ok {
+								if fontDescDict, ok := fontDesc.PdfObject.(*unipdf.PdfObjectDictionary); ok {
+									fmt.Println(fontDescDict)
+									if fontFile2, ok := (*fontDescDict)["FontFile2"]; ok {
+										fmt.Println("=====Font File 2====")
+										if oldStream := fontFile2.(*unipdf.PdfObjectStream); ok {
+											bs, err := unipdf.DecodeStream(oldStream)
+											if err == nil {
+												f, _ := os.Create("font.ttf")
+												f.Write(bs)
+											}else{
+												fmt.Println(err.Error())
+											}
+											// oldStream.Stream = []byte{}
+										}else{
+											fmt.Println("Not ok")
+										}
+									}
+								}
+							}
 						} else {
 							fmt.Println(k, v)
 						}
@@ -99,6 +101,10 @@ func pContent(page *unipdf.PdfPage) {
 var reUnicode *regexp.Regexp = regexp.MustCompile(" <[0-9A-F]{4}>\n")
 
 func main() {
+
+
+	//CreatePdf("你好啊中文")
+	//return
 	flag.Parse()
 	args := flag.Args()
 	if len(args) < 1 {
@@ -126,7 +132,7 @@ func main() {
 	for _, page := range pdfReader.PageList {
 		//pdfWriter.AddPage(page.GetPageAsIndirectObject())
 		//break
-		// pFont(page)
+		pFont(page)
 		pContent(page)
 		pdfWriter.AddPage(page.GetPageAsIndirectObject())
 		i++
@@ -137,4 +143,23 @@ func main() {
 
 	n, err := os.Create("D:/Zoe/Projects/GO/src/github.com/jiusanzhou/pdf2html/cmd/parsepdf/_1.pdf")
 	pdfWriter.Write(n)
+}
+
+func CreatePdf(content string) {
+	pdf := gopdf.GoPdf{}
+	pdf.Start(gopdf.Config{ PageSize: gopdf.Rect{W: 595.28, H: 841.89}}) //595.28, 841.89 = A4
+	pdf.AddPage()
+	err := pdf.AddTTFFont("t", "D:\\Zoe\\Projects\\GO\\src\\github.com\\jiusanzhou\\pdf2html\\cmd\\parsepdf\\wts11.ttf")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	err = pdf.SetFont("t", "", 14)
+	if err != nil {
+		log.Print(err.Error())
+		return
+	}
+	pdf.Cell(nil, content)
+	pdf.WritePdf("D:\\Zoe\\Projects\\GO\\src\\github.com\\jiusanzhou\\pdf2html\\cmd\\parsepdf\\hello.pdf")
 }
