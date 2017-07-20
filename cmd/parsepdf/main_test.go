@@ -3,5 +3,5 @@ package main
 import "testing"
 
 func TestCreatePdf(t *testing.T) {
-	CreatePdf("AAAAAAAAAAAAAAAAAAAAAAAAAA􀊮􀌡􀼟􀣘A")
+	CreatePdf("牛逼的中家家")
 }

@@ -1,7 +1,6 @@
 package wkhtml2pdf
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/jiusanzhou/pdf2html/pkg/html2pdf"
 	"github.com/jiusanzhou/pdf2html/pkg/util"
@@ -9,6 +8,7 @@ import (
 	"os"
 	"path"
 	"time"
+	"regexp"
 )
 
 // material of factory input
@@ -138,13 +138,21 @@ func (f *Factory) NewMaterial(filePath, outputDir, outputFileName string) (m *ht
 		OutputFilePath: outputPath,
 	}
 
+	regFontRemove, _ = regexp.Compile("font-family:ff[a-z0-9]+;")
+
 	return
 }
 
+var regFontRemove *regexp.Regexp
+
 func fixFontsBug(f string) {
 	data, err := ioutil.ReadFile(f)
+
 	if err == nil {
-		ioutil.WriteFile(f, bytes.Replace(data, []byte("@font-face{font-family:"), []byte("@font-face{font-family:_remove_"), -1), 0666)
+		ioutil.WriteFile(f, regFontRemove.ReplaceAllFunc(data,  func(s []byte)[]byte{
+			return []byte("")
+		}), 0666)
+		// ioutil.WriteFile(f, bytes.Replace(data, []byte("@font-face{font-family:"), []byte("@font-face{font-family:_remove_"), -1), 0666)
 	}
 }
 
@@ -220,7 +228,7 @@ func (f *Factory) Start() {
 	for m := range f.in {
 
 		// get a material
-		func() {
+		go func(m *html2pdf.Material) {
 			// convert
 			p, _ := f.Convert(m)
 
@@ -228,7 +236,7 @@ func (f *Factory) Start() {
 
 			// put product
 			f.out <- p
-		}()
+		}(m)
 	}
 }
 

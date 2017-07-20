@@ -308,6 +308,11 @@ func pdfToSimple(f, t string) error {
 	}
 
 	tmpDir := os.TempDir()
+	if opts.tmpDir != "" {
+		if p, err := filepath.Abs(opts.tmpDir); err == nil {
+			tmpDir = p
+		}
+	}
 	// 1. 建立存放切分文件和HTML文件以及转换后的PDF文件的临时目录
 	// - tmp+pureName_pieces 		  # 切分后的PDF存放目录
 	// - tmp+pureName_html			  # 转换至HTML的存放目录
@@ -319,7 +324,7 @@ func pdfToSimple(f, t string) error {
 		os.RemoveAll(tmpPiecesDir)
 	}
 	for {
-		if err := os.MkdirAll(tmpPiecesDir, 0666); err == nil {
+		if err := os.MkdirAll(tmpPiecesDir, 0711); err == nil {
 			break
 		}
 	}
@@ -329,7 +334,7 @@ func pdfToSimple(f, t string) error {
 		os.RemoveAll(tmpHtmlDir)
 	}
 	for {
-		if err := os.MkdirAll(tmpHtmlDir, 0666); err == nil {
+		if err := os.MkdirAll(tmpHtmlDir, 0711); err == nil {
 			break
 		}
 	}
@@ -339,7 +344,7 @@ func pdfToSimple(f, t string) error {
 		os.RemoveAll(tmpSimpleHtmlDir)
 	}
 	for {
-		if err := os.MkdirAll(tmpSimpleHtmlDir, 0666); err == nil {
+		if err := os.MkdirAll(tmpSimpleHtmlDir, 0711); err == nil {
 			break
 		}
 	}
@@ -349,18 +354,20 @@ func pdfToSimple(f, t string) error {
 		os.RemoveAll(tmpSimplePiecesDir)
 	}
 	for {
-		if err := os.MkdirAll(tmpSimplePiecesDir, 0666); err == nil {
+		if err := os.MkdirAll(tmpSimplePiecesDir, 0711); err == nil {
 			break
 		}
 	}
 
 	// 6. 确保删除所有的临时目录和文件
-	defer func() {
-		os.RemoveAll(tmpPiecesDir)
-		os.RemoveAll(tmpHtmlDir)
-		os.RemoveAll(tmpSimpleHtmlDir)
-		os.RemoveAll(tmpSimplePiecesDir)
-	}()
+	if !opts.debug {
+		defer func() {
+			os.RemoveAll(tmpPiecesDir)
+			os.RemoveAll(tmpHtmlDir)
+			os.RemoveAll(tmpSimpleHtmlDir)
+			os.RemoveAll(tmpSimplePiecesDir)
+		}()
+	}
 
 	// 2. 切分PDF文件
 	pieces, piecesCount, err := sm.Split(f, tmpPiecesDir, opts.maxPage)
@@ -380,8 +387,6 @@ func pdfToSimple(f, t string) error {
 			if p == nil {
 				// must be channel been closed
 				break
-			}else{
-				fmt.Println("Scale:", p.Material.Params.Scale)
 			}
 			wg2.Done()
 		}
@@ -446,7 +451,9 @@ func pdfToSimple(f, t string) error {
 	wg2.Wait()
 
 	// 转换完马上关闭Tab有问题，在这里关闭Chrome
-	html2pdfFactory.Close()
+	if html2pdfFactory != nil {
+		html2pdfFactory.Close()
+	}
 
 	// 5. 将PDF目录下的所有文件合并（注意顺序）
 	n, err := sm.MergetFromDir(tmpSimplePiecesDir, t)

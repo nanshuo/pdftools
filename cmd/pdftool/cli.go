@@ -84,6 +84,8 @@ type Options struct {
 	scale float64
 
 	maxPage int
+
+	debug bool
 }
 
 var opts *Options
@@ -114,6 +116,8 @@ func init() {
 		scale float64
 
 		maxPage int
+
+		debug bool
 	)
 
 	flag.Usage = func() {
@@ -136,6 +140,7 @@ func init() {
 	flag.StringVar(&output, "output", "", "繁<->简转换模式下，输出的文件名")
 	flag.Float64Var(&scale, "scale", 1, "HTML -> PDF 的缩放")
 	flag.IntVar(&maxPage, "max-page", 50, "一次转换最多的页数，用此参数可控制并发。不是越小越好啊，越好越占CPU哦")
+	flag.BoolVar(&debug, "debug", false,"")
 
 	switch runtime.GOOS {
 	case "windows":
@@ -173,6 +178,8 @@ func init() {
 
 		scale:   scale,
 		maxPage: maxPage,
+
+		debug: debug,
 	}
 
 	if len(flag.Args()) == 0 {
