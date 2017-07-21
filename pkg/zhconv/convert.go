@@ -9,6 +9,8 @@ import (
 )
 
 var chineseRegex *regexp.Regexp = regexp.MustCompile("[\u4e00-\u9fa5]")
+var ChineseRegex = chineseRegex
+var DoubleCharRegex *regexp.Regexp = regexp.MustCompile("[\u00A1-\u9fa5]")
 
 type Factory struct {
 	s2t map[int32][]byte
@@ -77,14 +79,28 @@ func (f *Factory) ToTraditional(str string) (res []byte) {
 	return
 }
 
-func (f *Factory) FileToSimple(source, dist string) (err error) {
+func (f *Factory) FileToSimple(source, dist string) (err error, precent float64) {
 
 	str, err := ioutil.ReadFile(source)
 	if err != nil {
 		return
 	}
 
-	res := f.ToSimple(util.B2s(str))
+	s := util.B2s(str)
+	// 这里的逻辑处理得不够好
+	// 但是为了业务职能加在这里了
+
+	// 获取非字母数据和符号字符数据
+	ds := DoubleCharRegex.FindAllString(s, -1)
+
+	// 获取中文数据
+	cs := ChineseRegex.FindAllString(strings.Join(ds, ""), -1)
+
+	if len(ds) > 0 {
+		precent = float64(len(cs)) / float64(len(ds))
+	}
+
+	res := f.ToSimple(s)
 	err = ioutil.WriteFile(dist, res, 0666)
 
 	return
@@ -98,7 +114,7 @@ func (f *Factory) FileToTraditional(source, dist string) (err error) {
 	}
 
 	res := f.ToTraditional(util.B2s(str))
-	err = ioutil.WriteFile(dist,res, 0666)
+	err = ioutil.WriteFile(dist, res, 0666)
 
 	return
 }
@@ -134,9 +150,9 @@ func IsChinese(char string) bool {
 }
 
 func IsChineseInt(str int32) bool {
-	if 19968<=str && str<=40869{
+	if 19968 <= str && str <= 40869 {
 		return true
-	}else{
+	} else {
 		return false
 	}
 }

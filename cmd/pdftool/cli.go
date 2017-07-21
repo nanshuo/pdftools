@@ -51,6 +51,12 @@ type Options struct {
 	// directory for output files
 	outputDir string
 
+	// traditional to simple resource
+	tran2simResource string
+
+	// if need to remove the default tran-sim pairs
+	tran2simRemove bool
+
 	// execute file of pdf2htmlEx
 	// if we assign this, we will not find it in data dir
 	pdf2htmlEx string
@@ -86,6 +92,8 @@ type Options struct {
 	maxPage int
 
 	debug bool
+
+	errorWordsThreshold float64
 }
 
 var opts *Options
@@ -104,6 +112,9 @@ func init() {
 		dataDir   string
 		outputDir string
 
+		tran2simResource string
+		tran2simRemove bool
+
 		suffix string
 
 		http string
@@ -118,6 +129,8 @@ func init() {
 		maxPage int
 
 		debug bool
+
+		errorWordsThreshold float64
 	)
 
 	flag.Usage = func() {
@@ -134,6 +147,8 @@ func init() {
 	flag.StringVar(&pdf2htmlExTpl, "pdf2html-tpl", "{{exe}} --data-dir={{data}} {{input}} {{output}}", "pdf2htmlEx工具的执行模板")
 	flag.StringVar(&dataDir, "data-dir", ".data", "数据路径，一般情况下里面会包含chrome和pdf2htmlEx")
 	flag.StringVar(&outputDir, "output-dir", "", "转换文件的输出目录")
+	flag.StringVar(&tran2simResource, "tran2sim-resource", "", "繁体=简体 字库文件（一行一组，如: 一=一）")
+	flag.BoolVar(&tran2simRemove, "tran2sim-remove", false, "是否移除默认繁简字库，除非你提供的字库很全，否则不要设置该项")
 	flag.StringVar(&suffix, "suffix", "", "转换文件的后缀，只针对于繁<->简")
 	flag.StringVar(&http, "http", ":8080", "server模式下，转换服务的HTTP监听地址")
 	flag.StringVar(&auth, "auth", "", "server模式下，转换服务的认证用户名和密码")
@@ -141,6 +156,7 @@ func init() {
 	flag.Float64Var(&scale, "scale", 1, "HTML -> PDF 的缩放")
 	flag.IntVar(&maxPage, "max-page", 50, "一次转换最多的页数，用此参数可控制并发。不是越小越好啊，越好越占CPU哦")
 	flag.BoolVar(&debug, "debug", false,"")
+	flag.Float64Var(&errorWordsThreshold, "error-words-threshold",0.5, "判断为乱码的错误词比例阈值")
 
 	switch runtime.GOOS {
 	case "windows":
@@ -166,6 +182,10 @@ func init() {
 		auth:      auth,
 		outputDir: outputDir,
 		dataDir:   dataDir,
+
+		tran2simResource: tran2simResource,
+		tran2simRemove: tran2simRemove,
+
 		suffix:    suffix,
 		chrome:    chrome,
 
@@ -180,6 +200,8 @@ func init() {
 		maxPage: maxPage,
 
 		debug: debug,
+
+		errorWordsThreshold: errorWordsThreshold,
 	}
 
 	if len(flag.Args()) == 0 {

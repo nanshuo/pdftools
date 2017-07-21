@@ -40,6 +40,10 @@ func Split(f string, outputDir string, maxPage int) (fs []string, n int, err err
 	var r int64
 	var pageContainer []*unipdf.PdfPage = []*unipdf.PdfPage{}
 	for _, p := range pages {
+
+		// check page content
+
+
 		Px, Py, Pr, err := getSize(p)
 		if err != nil {
 			fmt.Println(err.Error())

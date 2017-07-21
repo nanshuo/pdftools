@@ -12,6 +12,8 @@ import (
 	"github.com/jiusanzhou/unidoc/common"
 	"regexp"
 	"github.com/signintech/gopdf"
+	"github.com/jiusanzhou/pdf2html/pkg/zhconv"
+	"strings"
 )
 
 func pFont(page *unipdf.PdfPage) {
@@ -103,8 +105,24 @@ var reUnicode *regexp.Regexp = regexp.MustCompile(" <[0-9A-F]{4}>\n")
 func main() {
 
 
+	text := "微信抓取账号与手机等其他信sssssssssss;.~@#$$%^&*)(*&^}:\"><?息㟡㒂˪ᶲⶪ夷⇯˫䫔Ḵ⋩"
+
+	fmt.Println("检查是否是乱码！")
+
+	sss := zhconv.DoubleCharRegex.FindAllString(text, -1)
+	fmt.Println(sss)
+	fmt.Println("第一步：扣出双字节字符")
+
+	ss := zhconv.ChineseRegex.FindAllString(strings.Join(sss, ""), -1)
+	fmt.Println(ss)
+	fmt.Println("第二步：扣出汉字")
+
+	fmt.Println(float32(len(ss))/float32(len(sss)))
+	fmt.Println("第三步：计算汉字在字表中的比例")
+	fmt.Println("小于0.5可能就是乱码了")
+	fmt.Println("退出程序！")
 	//CreatePdf("你好啊中文")
-	//return
+	return
 	flag.Parse()
 	args := flag.Args()
 	if len(args) < 1 {

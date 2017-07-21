@@ -16,6 +16,13 @@ var zhconvFactory *zhconv.Factory
 
 func zhconvInit() {
 	zhconvFactory = zhconv.NewFactory()
+	if opts.tran2simResource != "" {
+		if util.Exists(opts.tran2simResource) {
+			zhconvFactory.LoadResource(opts.tran2simResource, opts.tran2simRemove)
+		}else{
+			fmt.Println("tran-sim resource file not exits.")
+		}
+	}
 }
 
 func zhconvClose() {
@@ -63,116 +70,6 @@ func prepare(filename string) (*T, error) {
 	}
 
 	return t, nil
-}
-
-func old() {
-
-	//var err error
-	//var t *T
-	//var outputFile string
-	//var simpleFile string
-	//t, err = prepare(i)
-	//
-	//if err != nil {
-	//	fmt.Println(err.Error())
-	//	continue
-	//}
-	//
-	//ext := filepath.Ext(t.m)
-	//base, nameWithExt := filepath.Split(t.m)
-	//
-	//// name := strings.Replace(nameWithExt, ext, "", -1)
-	//name := base + nameWithExt[:len(nameWithExt)-len(ext)]
-	//
-	//if opts.suffix != "" {
-	//	simpleFile = name + opts.suffix + ext
-	//} else {
-	//	simpleFile = name + "_simple" + ext
-	//}
-	//
-	//err = zhconvFactory.FileToSimple(t.m, simpleFile)
-	//if err != nil {
-	//	fmt.Println(err.Error())
-	//	continue
-	//}
-	//
-	//if len(opts.inputs) == 1 && len(opts.outputs) == 1 {
-	//	outputFile = opts.outputs[0]
-	//} else {
-	//	ext := filepath.Ext(t.i)
-	//	base, nameWithExt := filepath.Split(t.i)
-	//	// name := strings.Replace(nameWithExt, ext, "", -1)
-	//	name = base + nameWithExt[:len(nameWithExt)-len(ext)]
-	//
-	//	if opts.suffix != "" {
-	//		outputFile = name + opts.suffix + ext
-	//	} else {
-	//		outputFile = name + "_simple" + ext
-	//	}
-	//}
-	//
-	//switch t.fileType {
-	//case "PDF":
-	//	fmt.Println("再将HTML转换为PDF,这会花一些时间,请耐心等候")
-	//
-	//	if opts.wkhtml2pdf != "" {
-	//
-	//		if wkhtml2pdfFactory == nil {
-	//			wkhtml2pdfInit()
-	//		}
-	//
-	//		m, err := wkhtml2pdfFactory.NewMaterial(simpleFile, opts.outputDir, outputFile)
-	//		if err != nil {
-	//			fmt.Println(err.Error())
-	//			continue
-	//		}
-	//
-	//		p, err := wkhtml2pdfFactory.Convert(m)
-	//		if err != nil {
-	//			fmt.Println(err.Error())
-	//			continue
-	//		}
-	//
-	//		fmt.Println("[wkhtmltopdf]HTML->PDF 耗时:", p.Coast.String())
-	//
-	//		// remove old file
-	//		os.Remove(t.m)
-	//		os.Remove(simpleFile)
-	//
-	//		// merge pdf files
-	//
-	//		fmt.Println("转换完成:", p.FilePath)
-	//
-	//	} else {
-	//
-	//		// convert back to pdf
-	//		if html2pdfFactory == nil {
-	//			html2pdfInit()
-	//		}
-	//
-	//		m, err := html2pdfFactory.NewMaterial(simpleFile, opts.outputDir, outputFile, opts.scale)
-	//		if err != nil {
-	//			fmt.Println(err.Error())
-	//			continue
-	//		}
-	//
-	//		p, err := html2pdfFactory.Convert(m)
-	//		if err != nil {
-	//			fmt.Println(err.Error())
-	//			continue
-	//		}
-	//
-	//		fmt.Println("[chrome]HTML->PDF 耗时:", p.Coast.String())
-	//
-	//		// remove old file
-	//		os.Remove(t.m)
-	//		os.Remove(simpleFile)
-	//
-	//		// merge pdf files
-	//
-	//		fmt.Println("转换完成:", p.FilePath)
-	//	}
-	//}
 }
 
 func toSimple() {
@@ -304,7 +201,7 @@ func pdfToSimple(f, t string) error {
 
 	if t == "" {
 		// 如果输出文件为空，在的当前目录下pureName+suffix+ext
-		t = filepath.Join(fpath, pureName+opts.suffix+ext)
+		t = filepath.Join(fpath, pureName+suffix+ext)
 	}
 
 	tmpDir := os.TempDir()
@@ -380,6 +277,10 @@ func pdfToSimple(f, t string) error {
 	var wg2 sync.WaitGroup = sync.WaitGroup{}
 	var ct1, ct2 int
 
+	// 比例
+	var precent float64
+
+
 	// 先启动HTML2PDF工厂
 	go func() {
 		for {
@@ -392,7 +293,7 @@ func pdfToSimple(f, t string) error {
 		}
 	}()
 
-	// 先启动PDF占HTML工厂
+	// 再启动PDF占HTML工厂
 	go func() {
 		// 去消费pdf2html的产品
 		// 转为简体->送到HTML转PDF工厂
@@ -409,9 +310,13 @@ func pdfToSimple(f, t string) error {
 
 				// 转换为简体
 				simpleHtmlFile := filepath.Join(tmpSimpleHtmlDir, name)
-				err := zhconvFactory.FileToSimple(pHtml.FilePath, simpleHtmlFile)
+				err, v := zhconvFactory.FileToSimple(pHtml.FilePath, simpleHtmlFile)
 				if err != nil {
 					fmt.Println(err.Error())
+				}
+
+				if v > precent {
+					precent = v
 				}
 
 				// 加入HTML转PDF工厂
@@ -453,6 +358,13 @@ func pdfToSimple(f, t string) error {
 	// 转换完马上关闭Tab有问题，在这里关闭Chrome
 	if html2pdfFactory != nil {
 		html2pdfFactory.Close()
+	}
+
+	// 4.5 如果错字比例高于设定值，那么输出成错误文件
+	// error 应该命令行传过来
+	if precent <= opts.errorWordsThreshold {
+		fmt.Printf("中文的比例太低了，输出为错误文件哦 %f < %f\n", precent, opts.errorWordsThreshold)
+		t = strings.Replace(t, suffix, "_error", -1)
 	}
 
 	// 5. 将PDF目录下的所有文件合并（注意顺序）
